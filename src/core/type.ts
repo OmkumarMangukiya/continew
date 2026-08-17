@@ -28,9 +28,9 @@ export interface Event{
 */
 export type DeliveryAttempt = 
                     | {status: 'pending'; eventId: string; scheduledAt: Date}
-                    | {status: 'succeded' ; eventId: string; responseCode: number; latencyMs: number; deliveredAt: Date}
+                    | {status: 'succeeded' ; eventId: string; responseCode: number; latencyMs: number; deliveredAt: Date}
                     | {status: 'failed'; eventId: string; responseCode: number | null; error : string; attemptNumber: number; nextRetryAt: Date}
-                    | {status: 'exhuated'; eventId: string; totalAttempts: number; lastError: string;}
+                    | {status: 'exhausted'; eventId: string; totalAttempts: number; lastError: string;}
 
 
                             

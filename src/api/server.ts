@@ -44,6 +44,17 @@ const handleEvents = async (req: Request, res: Response) => {
     try {
         const { endpointId, type, payload } = req.body;
 
+        // Input Validation
+        if (!endpointId || typeof endpointId !== 'string') {
+            return res.status(400).json({ error: "endpointId is required and must be a string" });
+        }
+        if (!type || typeof type !== 'string') {
+            return res.status(400).json({ error: "type is required and must be a string" });
+        }
+        if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+            return res.status(400).json({ error: "payload must be a valid JSON object" });
+        }
+
         // first check if this is registered endpoint
 
         const endpointResult = await db.query(`SELECT * FROM endpoints WHERE id = $1`, [endpointId]);

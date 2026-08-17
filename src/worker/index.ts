@@ -32,14 +32,20 @@ export const deliveryWorker = new Worker(
 
         const signature = signPayload(signingSecret, payloadString);
 
-        await fetch(endpoint.url,{
+        const response = await fetch(endpoint.url, {
             method: 'POST',
-            headers:{
+            headers: {
                 'Content-Type': 'application/json',
                 'x-webhook-signature': signature
             },
             body: payloadString
         });
+
+        if (!response.ok) {
+            throw new Error(`HTTP request failed with status: ${response.status}`);
+        }
+
+        console.log(`[Worker] Successfully delivered event ${event.id} to ${endpoint.url}`);
     },
-    {connection}
+    { connection }
 );
