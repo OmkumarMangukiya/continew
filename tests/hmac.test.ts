@@ -1,3 +1,4 @@
+// Unit tests written in BDD - Behavior Driven Development
 import { describe, it, expect } from "vitest";
 import { signPayload } from "../src/core/hmac.js";
 

@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS endpoints(
     id              TEXT PRIMARY KEY,
     url             TEXT NOT NULL,
     signing_secret  TEXT NOT NULL,
-    creates_at      TIMESTAMPTZ DEFAULT NOW(),
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
     is_active       BOOLEAN DEFAULT TRUE
 );
 

@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "tsx watch src/api/server.ts",
+    "dev:api": "tsx watch src/api/server.ts",
+    "dev:worker": "tsx watch src/worker/index.ts",
     "build": "tsc",
     "start": "node dist/api/server.js",
     "test": "vitest run"
@@ -17,6 +18,7 @@
     "bullmq": "^6.1.2",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "ioredis": "^6.0.0",
     "pg": "^8.23.0"
   },
   "devDependencies": {
