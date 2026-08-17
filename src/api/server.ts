@@ -77,7 +77,7 @@ const handleEvents = async (req: Request, res: Response) => {
             [event.id, event.endpointId, event.type, JSON.stringify(event.payload), event.createdAt]
         );
 
-        await deliveryQueue.add(`${event.id}:${type}`, event);
+        await deliveryQueue.add(`${event.id}:${type}`, event, { attempts: 6, backoff: { type: 'customWebhookbackoff' } });
 
         return res.status(200).json({ eventId: event.id, status: 'queued' });
     } catch (error) {

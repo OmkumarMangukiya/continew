@@ -7,6 +7,24 @@ import { connection } from "../core/queue.js"
 import { signPayload } from "../core/hmac.js"
 import type { Event } from "../core/type.js"
 import { db } from "../core/db.js"
+
+// Function to calculate backoff
+export const backoffCalculation = (attemptsMade: number, type?: string) => {
+    if (type === 'customWebhookbackoff') {
+        const delays = [
+            1 * 1000,
+            5 * 1000,
+            15 * 1000,
+            30 * 1000,
+            5 * 60 * 1000,
+            60 * 60 * 1000,
+        ];
+        return delays[attemptsMade - 1] ?? 60 * 60 * 1000;
+    }
+    return -1;
+}
+
+// Webhook Delivery 
 export const deliveryWorker = new Worker(
     'webhook-delivery',
     async (job: Job) => {
@@ -47,5 +65,10 @@ export const deliveryWorker = new Worker(
 
         console.log(`[Worker] Successfully delivered event ${event.id} to ${endpoint.url}`);
     },
-    { connection }
+    {
+        connection,
+        settings: {
+            backoffStrategy: backoffCalculation,
+        },
+    }
 );
