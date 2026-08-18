@@ -7,6 +7,7 @@ import { connection } from "../core/queue.js"
 import { signPayload } from "../core/hmac.js"
 import type { Event } from "../core/type.js"
 import { db } from "../core/db.js"
+import { isRequestAllowed, recordSuccess, redisClient } from "../core/circuitBreaker.js"
 
 // Function to calculate backoff
 export const backoffCalculation = (attemptsMade: number, type?: string) => {
@@ -40,6 +41,10 @@ export const deliveryWorker = new Worker(
         }
         const endpoint = result.rows[0];
         const signingSecret = endpoint.signing_secret;
+        const isAllowed = isRequestAllowed(redisClient, event.endpointId);
+        if(!isAllowed){
+            throw new Error(`Circuit open for endpoint ${event.endpointId}`);
+        }
 
         const payloadString = JSON.stringify({
             id: event.id,
@@ -62,7 +67,7 @@ export const deliveryWorker = new Worker(
         if (!response.ok) {
             throw new Error(`HTTP request failed with status: ${response.status}`);
         }
-
+        await recordSuccess(redisClient, event.endpointId);
         console.log(`[Worker] Successfully delivered event ${event.id} to ${endpoint.url}`);
     },
     {
