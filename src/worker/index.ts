@@ -29,7 +29,10 @@ export const backoffCalculation = (attemptsMade: number, type?: string) => {
 export const deliveryWorker = new Worker(
     'webhook-delivery',
     async (job: Job) => {
-        console.log(`Processing job : ${job.id} with data: `, job.data)
+        const attempt = job.attemptsMade + 1;
+        const maxAttempts = job.opts.attempts || 1;
+
+        console.log(`Processing job: ${job.id} (Attempt ${attempt}/${maxAttempts}) with data: `, job.data);
 
         const event: Event = job.data;
 
@@ -41,8 +44,8 @@ export const deliveryWorker = new Worker(
         }
         const endpoint = result.rows[0];
         const signingSecret = endpoint.signing_secret;
-        const isAllowed = isRequestAllowed(redisClient, event.endpointId);
-        if(!isAllowed){
+        const isAllowed = await isRequestAllowed(redisClient, event.endpointId);
+        if (!isAllowed) {
             throw new Error(`Circuit open for endpoint ${event.endpointId}`);
         }
 

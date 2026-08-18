@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS delivery_attempts(
     id              BIGSERIAL PRIMARY KEY,
     event_id        TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
     status          TEXT NOT NULL, -- 'pending', 'succeded', 'failed', 'exhausted'
-    response_code   INTEGER,
+    response_code   INTEGER, -- NULL if request never reached server
     latency_ms      INTEGER,
     error           TEXT,
     attempt_number  INTEGER,
