@@ -224,7 +224,7 @@ window.addEventListener('DOMContentLoaded', () => {
     connectWebSocket();
 });
 
-// NEW: Fetch history using the REST API endpoints you built
+// Fetch history using the REST API endpoints
 const endpointIdInput = document.getElementById('endpointIdInput');
 const btnLoadHistory = document.getElementById('btnLoadHistory');
 
@@ -265,4 +265,85 @@ btnLoadHistory.addEventListener('click', async () => {
     } finally {
         btnLoadHistory.textContent = "Load History";
     }
+});
+
+// DOM Elements for Endpoints
+const endpointSelect = document.getElementById('endpointSelect');
+
+// Fetch and populate endpoint options from GET /endpoints
+async function loadEndpointsDropdown() {
+    try {
+        const response = await fetch('/endpoints');
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || "Failed to fetch endpoints");
+        }
+
+        const endpoints = data.rows || data.endpoints || (Array.isArray(data) ? data : []);
+        
+        endpointSelect.innerHTML = '<option value="">Select an Endpoint...</option>';
+
+        endpoints.forEach(ep => {
+            const option = document.createElement('option');
+            option.value = ep.id;
+            const shortId = ep.id.substring(0, 8);
+            const statusLabel = ep.is_active ? 'active' : 'inactive';
+            option.textContent = `${ep.url} (${shortId}...) [${statusLabel}]`;
+            endpointSelect.appendChild(option);
+        });
+    } catch (err) {
+        console.error("Error loading endpoints dropdown:", err);
+    }
+}
+
+// Load delivery attempt history for the selected endpoint
+async function loadEndpointHistory() {
+    const endpointId = endpointSelect.value;
+    if (!endpointId) {
+        alert("Please select an endpoint from the dropdown.");
+        return;
+    }
+
+    try {
+        btnLoadHistory.textContent = "Loading...";
+        const response = await fetch(`/endpoints/${endpointId}/attempts?limit=50`);
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || data.error || "Failed to load history");
+        }
+
+        // Reset live dashboard state with historical records
+        state.attempts = [];
+        state.stats = { total: 0, succeeded: 0, failed: 0, totalLatency: 0 };
+
+        if (data.attempts && data.attempts.length > 0) {
+            // Process oldest to newest
+            const historicalAttempts = [...data.attempts].reverse();
+            historicalAttempts.forEach(attempt => {
+                handleIncomingAttempt(attempt);
+            });
+        }
+
+        renderTable();
+    } catch (error) {
+        alert("Error loading history: " + error.message);
+    } finally {
+        btnLoadHistory.textContent = "Load History";
+    }
+}
+
+// Event Listeners
+btnLoadHistory.addEventListener('click', loadEndpointHistory);
+endpointSelect.addEventListener('change', () => {
+    if (endpointSelect.value) {
+        loadEndpointHistory();
+    }
+});
+
+// Initialize WebSocket & Endpoints on page load
+window.addEventListener('DOMContentLoaded', () => {
+    connectWebSocket();
+    loadEndpointsDropdown();
 });

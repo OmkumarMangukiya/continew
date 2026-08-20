@@ -420,8 +420,10 @@
         <div class="controls-bar">
             <h2 class="table-title">Live Delivery Log</h2>
             <div class="filter-group">
-                <input type="text" id="endpointIdInput" class="search-input"
-                    placeholder="Enter Endpoint ID for history...">
+                <!-- Endpoint Dropdown Selector -->
+                <select id="endpointSelect" class="filter-select" style="max-width: 260px;">
+                    <option value="">Select an Endpoint...</option>
+                </select>
                 <button id="btnLoadHistory" class="btn-action">Load History</button>
 
                 <input type="text" id="searchInput" class="search-input" placeholder="Search by Event ID...">

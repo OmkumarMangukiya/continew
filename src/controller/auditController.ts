@@ -6,6 +6,20 @@ import { Request, Response } from "express"
 import { db } from "../core/db.js";
 import { getCircuitState, redisClient } from "../core/circuitBreaker.js";
 
+// GET /endpoints
+export const getAllEndpoints = async (req: Request, res: Response) => {
+    try {
+        const { rows } = await db.query('SELECT id,url,created_at,is_active FROM endpoints');
+
+        return res.status(200).json({
+            rows
+        });
+    } catch (error) {
+        console.error("Error fetching all endpoints", error);
+        return res.status(500).json({ message: "Failed to fetch all endpoints" });
+    }
+}
+
 // GET /endpoints/:id
 export const getEndpointDetails = async (req: Request, res: Response) => {
     try {

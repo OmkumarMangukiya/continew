@@ -8,6 +8,7 @@ import { WebSocketServer } from "ws";
 import http from 'http'
 import { Redis } from "ioredis";
 import {
+    getAllEndpoints,
     getEndpointDetails,
     getAllEventAttempts,
     getAllEndpointAttempts
@@ -129,6 +130,7 @@ const handleEvents = async (req: Request, res: Response) => {
 app.post('/endpoints', handleEndpoint);
 app.post('/events', handleEvents);
 
+app.get('/endpoints', getAllEndpoints);
 app.get('/endpoints/:id', getEndpointDetails);
 app.get('/events/:id/attempts', getAllEventAttempts);
 app.get('/endpoints/:id/attempts', getAllEndpointAttempts);
