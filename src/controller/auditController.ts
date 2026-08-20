@@ -12,7 +12,7 @@ export const getEndpointDetails = async (req: Request, res: Response) => {
         const id = req.params.id as string;
 
         if (!id)
-            return res.json(400).json({ message: "Endpoint ID is required" });
+            return res.status(400).json({ message: "Endpoint ID is required" });
         // get the data from the db
         const endpointResult = await db.query(`SELECT id, url, created_at, is_active FROM endpoints WHERE id=$1`, [id]);
 
@@ -64,7 +64,7 @@ export const getAllEventAttempts = async (req: Request, res: Response) => {
 
 }
 
-// GET /endpoints/:id/attempts
+// GET /endpoints/:id/attempts?page=1&limit=50
 export const getAllEndpointAttempts = async (req: Request, res: Response) => {
     try {
         const endpointId = req.params.id as string;
@@ -79,7 +79,32 @@ export const getAllEndpointAttempts = async (req: Request, res: Response) => {
         if (endpointData.rowCount === 0) {
             return res.status(404).json({ message: "Endpoint not found" });
         }
-        
+
+        const limit = Math.min(Number(req.query.limit) || 50, 100);
+        const page = Math.max(Number(req.query.page) || 1, 1);
+        const offset = req.query.offset !== undefined ? Number(req.query.offset) : (page - 1) * limit;
+
+        const query = `
+            SELECT
+                da.id,
+                da.event_id,
+                da.status,
+                da.response_code,
+                da.latency_ms,
+                da.error,
+                da.attempt_number,
+                da.created_at,
+                e.type as event_type
+            FROM delivery_attempts da
+            JOIN events e ON da.event_id = e.id
+            WHERE e.endpoint_id = $1
+            ORDER BY da.created_at DESC
+            LIMIT $2 OFFSET $3
+        `;
+
+        const { rows } = await db.query(query, [endpointId, limit, offset]);
+
+        res.status(200).json({ endpointData, page, limit, offset, count: rows.length, attempts: rows });
     } catch (error) {
         console.error("Error fetching endpoint attempts:", error);
         return res.status(500).json({ error: "Failed to fetch endpoint attempts" });
