@@ -96,7 +96,7 @@ const handleEndpoint = async (req: Request, res: Response) => {
 // Controller for handling events from API and storing it in queue
 const handleEvents = async (req: Request, res: Response) => {
     try {
-        const { endpointId, type, payload } = req.body;
+        const { endpointId, type, payload } = req.body ?? {};
 
         // Input Validation
         if (!endpointId || typeof endpointId !== 'string') {
