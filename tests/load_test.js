@@ -1,8 +1,8 @@
 import http from 'http';
 
 const SERVER_URL = "http://localhost:3000";
-const TOTAL_ENDPOINTS = 50;
-const TOTAL_REQUESTS = 10000;
+const TOTAL_ENDPOINTS = 100;
+const TOTAL_REQUESTS = 5000;
 
 // 1. Spin up a local dummy server to receive the webhooks and ALWAYS return 200 OK
 const dummyServer = http.createServer((req, res) => {
@@ -56,7 +56,7 @@ async function runLoadTest(endpointIds) {
     for (let i = 0; i < TOTAL_REQUESTS; i += BATCH_SIZE) {
         const promises = [];
         const currentBatchSize = Math.min(BATCH_SIZE, TOTAL_REQUESTS - i);
-        
+
         for (let j = 0; j < currentBatchSize; j++) {
             const requestNumber = i + j + 1;
             const randomEndpointId = endpointIds[Math.floor(Math.random() * endpointIds.length)];
