@@ -7,31 +7,23 @@ By the end of this phase, your project is live at a public URL, your tests run a
 ---
 
 ## Concepts to Understand Before Coding
+### Node Version: Node 22 LTS
+- This setup standardizes on **Node 22** (`node:22-alpine`) across both local development, Docker containers, and GitHub Actions CI/CD.
+- Alpine-based images keep container footprint lightweight (< 150MB).
 
 ### Docker & Docker Compose
-**Docker** packages your app and all its dependencies into a **container** — a lightweight, isolated environment that runs the same way on your laptop and in the cloud.
+**Docker** packages your app and all its dependencies into an isolated **container** image.
 
-**Docker Compose** lets you define multiple containers (services) and their connections in one `docker-compose.yml` file. In our case, we need 4 services:
-- `api` — our Express API server
+**Docker Compose** lets you define multiple containers (services) and their connections in one `docker-compose.yml` file:
+- `api` — our Express API server (serves REST endpoints, WebSockets, and dashboard UI)
 - `worker` — our BullMQ dispatcher worker
 - `redis` — the message queue store and circuit breaker state store
 - `postgres` — the audit log database
 
-The API and worker share the same `Dockerfile` (same code, different startup command).
+The API and worker share the same Docker image (same codebase, different startup command).
 
 ### Why Separate API and Worker Containers?
-This is an important architectural point. If delivery jobs pile up (lots of failed retries), you can scale the `worker` container to 3 instances without touching the `api`. They scale independently because they do different work. If they were one process, scaling would mean running redundant API servers when you only need more worker capacity.
-
-### GitHub Actions CI/CD
-**CI (Continuous Integration):** On every Pull Request, run `npm run lint` and `npm test`. If any test fails, the PR is blocked from merging. This means nothing broken ever lands on `main`.
-
-**CD (Continuous Deployment):** On every push to `main`, automatically build and deploy the latest code to Render. No manual deploys.
-
-### Environment Variables
-Secrets (`DATABASE_URL`, `REDIS_URL`, signing secrets) must **never** be committed to git. We use environment variables, set differently per environment:
-- **Locally**: a `.env` file (added to `.gitignore`)
-- **In CI**: secrets stored in GitHub Actions settings
-- **In production**: environment variables set on Render's dashboard
+If delivery jobs pile up (lots of retries), you can scale the `worker` container to multiple instances independently (`docker compose up --scale worker=3`) without touching the `api`. They scale independently based on different bottlenecks (CPU/network for workers vs HTTP concurrency for the API).
 
 ---
 
@@ -42,17 +34,18 @@ continew/
 ├── .github/
 │   └── workflows/
 │       └── main.yml       ← GitHub Actions CI/CD pipeline
-├── Dockerfile             ← How to containerize the Node app
-├── docker-compose.yml     ← Define all 4 services together
-└── .env.example           ← Template showing which env vars are needed (no real values)
+├── Dockerfile             ← Multi-stage build for TypeScript Node app
+├── .dockerignore          ← Ignore node_modules, dist, .env from build context
+├── docker-compose.yml     ← Defines all 4 services (api, worker, redis, postgres)
+└── .env.example           ← Template for environment variables
 ```
 
 ---
 
 ## Step-by-Step
 
-### Step 1 — Create `.env.example` and `.env`
-Document all environment variables needed in `.env.example` (committed to git):
+### Step 1 — Create `.env.example` and `.dockerignore`
+Document all environment variables needed in `.env.example`:
 ```bash
 # .env.example — template for collaborators and deployments
 POSTGRES_USER=postgres
@@ -69,54 +62,72 @@ PORT=3000
 NODE_ENV=development
 ```
 
-Create a real `.env` file (ignored by git in `.gitignore`) with your actual values:
-```bash
-# .env — private credentials (NEVER commit to git)
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=your_secure_local_password
-POSTGRES_DB=continew
-POSTGRES_PORT=5432
-DATABASE_URL=postgresql://postgres:your_secure_local_password@localhost:5432/continew
-
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_URL=redis://localhost:6379
-
-PORT=3000
-NODE_ENV=development
+Create a `.dockerignore` file in the root directory:
+```
+node_modules
+dist
+.git
+.env
 ```
 
-Install `dotenv` to load it in Node:
-```bash
-npm install dotenv
-```
-Add `import 'dotenv/config';` at the top of both `src/api/server.ts` and `src/worker/index.ts`.
+Ensure `import 'dotenv/config';` is present at the entrypoints (`src/api/server.ts` and `src/worker/index.ts`).
 
-### Step 2 — Create `Dockerfile`
+---
+
+### Step 2 — Create `Dockerfile` (Multi-stage Build)
+
+Because TypeScript requires development dependencies (`tsc`, `@types/*`) during the build step, a **multi-stage build** is the cleanest production practice:
+
 ```dockerfile
-FROM node:20-alpine
+# Stage 1: Build TypeScript source
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files first (for Docker layer caching)
-COPY package*.json ./
-RUN npm ci --only=production
+COPY package*.json tsconfig.json ./
+RUN npm ci
 
-# Copy source and compile TypeScript
-COPY . .
+COPY src/ ./src/
 RUN npm run build
 
-# The CMD is overridden per-service in docker-compose.yml
+# Stage 2: Production runtime image
+FROM node:22-alpine AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+# Install only production dependencies
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+# Copy compiled JS from builder stage and static assets for frontend
+COPY --from=builder /app/dist ./dist
+COPY src/public ./src/public
+
+EXPOSE 3000
+
+# Default command (API server) — overridden for worker in docker-compose.yml
 CMD ["node", "dist/api/server.js"]
 ```
 
-> **Note on layer caching:** By copying `package*.json` and running `npm ci` BEFORE copying the source code, Docker can cache the `node_modules` layer. If you only change your source code but not your dependencies, Docker reuses the cached layer and the build is much faster.
+> **Key Notes:**
+> 1. **`npm run build`**: Runs `tsc` to compile TypeScript to `dist/`.
+> 2. **`src/public`**: Copied into runner stage so Express can serve the web dashboard.
+> 3. **`npm ci --omit=dev`**: Keeps the final container lean with only runtime dependencies.** `package*.json` is copied and cached before source compilation.
 
-### Step 3 — Create `docker-compose.yml`
+---
+
+### Step 3 — Update `docker-compose.yml`
+
+Combine the `api` and `worker` services with `postgres` and `redis`:
+
 ```yaml
 services:
   api:
     build: .
+    container_name: continew_api
+    restart: always
     command: node dist/api/server.js
     ports:
       - "${PORT:-3000}:3000"
@@ -132,6 +143,8 @@ services:
 
   worker:
     build: .
+    container_name: continew_worker
+    restart: always
     command: node dist/worker/index.js
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-continew}
@@ -157,9 +170,10 @@ services:
       - ./schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-continew}"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
   redis:
     image: redis:alpine
@@ -171,34 +185,33 @@ services:
       - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 5s
 
 volumes:
   postgres_data:
   redis_data:
 ```
 
-Note that in Compose:
-1. Containers refer to each other by **service name** (e.g., `postgres:5432` instead of `localhost:5432`).
-2. Credentials and configuration variables are interpolated dynamically from `.env` via `${VARIABLE_NAME}` rather than hardcoded in the file.
-3. `depends_on` with `condition: service_healthy` guarantees that the API and worker wait until Postgres and Redis are fully ready to accept network connections before starting up.
-
-Test it:
+Test running everything together locally:
 ```bash
 docker compose up --build
 ```
 
+---
+
 ### Step 4 — Create `.github/workflows/main.yml`
+
 ```yaml
 name: CI/CD
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   pull_request:
-    branches: [main]
+    branches: [main, master]
 
 jobs:
   test:
@@ -210,6 +223,11 @@ jobs:
         image: redis:alpine
         ports:
           - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - uses: actions/checkout@v4
@@ -223,6 +241,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Build TypeScript
+        run: npm run build
+
       - name: Run tests
         run: npm test
         env:
@@ -231,72 +252,44 @@ jobs:
   deploy:
     name: Deploy to Render
     runs-on: ubuntu-latest
-    needs: test  # Only deploy if tests pass
-    if: github.ref == 'refs/heads/main'  # Only deploy on pushes to main, not PRs
+    needs: test
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
 
     steps:
-      - name: Trigger Render Deploy
+      - name: Trigger Render Deploy Hook
         run: |
-          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+          if [ -n "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" ]; then
+            curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+          else
+            echo "RENDER_DEPLOY_HOOK_URL secret not set. Skipping deploy step."
+          fi
 ```
 
-The `deploy` job uses a **deploy hook** URL from Render — we set this up in Step 6.
+---
 
-### Step 5 — Add Your Render Deploy Hook Secret to GitHub
-In your GitHub repo → Settings → Secrets → Actions → New secret:
-- Name: `RENDER_DEPLOY_HOOK_URL`
-- Value: (the deploy hook URL from Render, set up next)
+### Step 5 — Deploy to Cloud (Render / Railway)
 
-### Step 6 — Deploy to Render
-Follow the `project_guide.md` section 10 for the full instructions. Summary:
-1. Push your code to GitHub (add remote origin: `git remote add origin <your-repo-url>`)
-2. Go to [render.com](https://render.com) and create a new account
-3. Create a **Web Service** for the API (points to your repo, Render detects Dockerfile, start command: `node dist/api/server.js`)
-4. Create a **Background Worker** for the dispatcher (same repo, start command: `node dist/worker/index.js`)
-5. Create a free **Postgres** database on Render
-6. Use **Upstash** for Redis (free tier, no spin-down): [upstash.com](https://upstash.com)
-7. Set environment variables (`DATABASE_URL`, `REDIS_URL`) on both services in the Render dashboard
-8. Copy the **Deploy Hook URL** from Render and add it to GitHub secrets as `RENDER_DEPLOY_HOOK_URL`
-
-### Step 7 — Verify the Full Pipeline
-1. Make a small change (e.g., add a comment to `server.ts`)
-2. Push to a branch and open a Pull Request
-3. Watch GitHub Actions run the `test` job — it should pass
-4. Merge the PR to `main`
-5. Watch GitHub Actions trigger the `deploy` job
-6. Go to your Render dashboard and confirm the deploy happened
-7. Hit your live URL with `curl` and confirm it responds
+1. **GitHub Repository**: Push all changes to your remote GitHub repo.
+2. **Postgres**: Create a hosted Postgres database (e.g. on Render or Supabase) and run `schema.sql`.
+3. **Redis**: Create a free Redis instance on [Upstash](https://upstash.com) (provides a persistent `rediss://...` connection string).
+4. **API Service**:
+   - Create a Web Service on Render pointing to your Dockerfile.
+   - Set environment variables: `DATABASE_URL`, `REDIS_URL`, `PORT=3000`.
+   - Command: `node dist/api/server.js`.
+5. **Worker Service**:
+   - Create a Background Worker on Render.
+   - Same environment variables.
+   - Command: `node dist/worker/index.js`.
+6. **Deploy Hook**: Add the webhook URL to GitHub Secrets as `RENDER_DEPLOY_HOOK_URL`.
 
 ---
 
 ## ✅ Phase 5 Checklist
 
 - [ ] `.env.example` documents all required environment variables
-- [ ] `Dockerfile` builds and runs the Node app
+- [ ] Multi-stage `Dockerfile` compiles TypeScript and packages static assets
 - [ ] `docker-compose.yml` runs all 4 services (`api`, `worker`, `redis`, `postgres`) together
-- [ ] `docker compose up` works end-to-end locally
-- [ ] `.github/workflows/main.yml` runs lint + tests on every PR
-- [ ] Tests pass in GitHub Actions
-- [ ] Deployed to Render (API + Worker)
-- [ ] Postgres on Render, Redis on Upstash
-- [ ] CD pipeline triggers on merge to `main`
-- [ ] Live URL accessible from the internet
-
----
-
-## 🎉 Project Complete
-
-Once you finish Phase 5, you have built:
-- A **reliable webhook delivery service** with at-least-once delivery guarantees
-- **Exponential backoff** retries and a **Redis-backed circuit breaker**
-- An **immutable Postgres audit log** of every delivery attempt
-- A **live real-time dashboard** over WebSockets
-- A fully **containerized** application with Docker Compose
-- A **CI/CD pipeline** that runs tests on every PR and deploys on merge
-
-And you can say this in an interview:
-> *"I built a webhook delivery service. Events are accepted and queued immediately via BullMQ so a slow destination never blocks the sender. Failed deliveries retry with exponential backoff, and a Redis-backed circuit breaker per endpoint stops wasting retries on a destination that's clearly down, resuming automatically once it recovers. Every attempt — success or failure — is appended to an immutable Postgres log for auditability, and payloads are HMAC-signed so receivers can verify authenticity. It's containerized with Docker, with the API and dispatcher worker as separate services so they scale independently, and GitHub Actions runs the test suite on every PR before deploying."*
-
-## What's Next (v2 — don't build yet)
-- **Kafka** in front of BullMQ for high-throughput ingestion
-- **Kubernetes** to replace Docker Compose (HPA scaling workers based on queue depth)
+- [ ] `docker compose up --build` works end-to-end locally
+- [ ] `.github/workflows/main.yml` tests build on PRs and pushes
+- [ ] Hosted Postgres & Upstash Redis configured
+- [ ] API and Worker deployed live to production
