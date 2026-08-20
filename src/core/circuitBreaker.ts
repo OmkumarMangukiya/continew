@@ -14,7 +14,15 @@ Functions Implemented :
 import { Redis } from 'ioredis';
 
 const redisURL = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
-export const redisClient = new Redis(redisURL);
+const isTls = redisURL.startsWith('rediss://');
+export const redisClient = new Redis(redisURL, {
+    maxRetriesPerRequest: null,
+    enableReadyCheck: false,
+    tls: isTls ? { rejectUnauthorized: false } : undefined
+});
+redisClient.on('error', (err) => {
+    console.warn('[Redis Client Warning]:', err.message);
+});
 
 export const CIRCUIT_CONFIG = {
     failureThreshold: 5, // if failed for more than 5 times - circuit open
@@ -38,7 +46,7 @@ export const getCircuitState = async (redisClient: Redis, endpointId: string): P
 
         // if cooldownSeconds is over then change the state to half-open to check
         if (elapsedSeconds >= CIRCUIT_CONFIG.cooldownSeconds) {
-            await redisClient.hset(`circuit:${endpointId}`, {'state': 'half-open'});
+            await redisClient.hset(`circuit:${endpointId}`, { 'state': 'half-open' });
             return 'half-open';
         }
 

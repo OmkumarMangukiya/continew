@@ -14,7 +14,13 @@ import {
     getAllEndpointAttempts
 } from "../controller/auditController.js";
 
-const redisSubscriber = new Redis(process.env.REDIS_URL || 'redis://127.0.0.1:6379');
+const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
+const isTls = redisUrl.startsWith('rediss://');
+const redisSubscriber = new Redis(redisUrl, {
+    maxRetriesPerRequest: null,
+    enableReadyCheck: false,
+    tls: isTls ? { rejectUnauthorized: false } : undefined
+});
 const app = express();
 const server = http.createServer(app);
 export const wss = new WebSocketServer({ server });
@@ -44,6 +50,14 @@ redisSubscriber.on('message', (channel: unknown, message: string) => {
             console.error("Failed to parse Redis message:", err);
         }
     }
+});
+
+redisSubscriber.on('error', (err) => {
+    console.warn('[Redis Subscriber Warning]:', err.message);
+});
+redisSubscriber.subscribe('webhook:delivery_attempt', (err: unknown) => {
+    if (err) console.error("Failed to subscribe to Redis channel:", err);
+    else console.log("Subscribed to Redis 'webhook:delivery_attempt' channel");
 });
 
 app.use(express.json());
