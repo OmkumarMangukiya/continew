@@ -2,51 +2,66 @@
 
 A robust backend service that guarantees a webhook event reaches its destination, retries intelligently with exponential backoff when it doesn't, and proves what happened with an immutable audit log.
 ```mermaid
-flowchart TD
-    %% Define Styles
-    classDef client fill:#f9f,stroke:#333,stroke-width:2px;
-    classDef core fill:#bbf,stroke:#333,stroke-width:2px;
-    classDef db fill:#fdb,stroke:#333,stroke-width:2px;
-    classDef external fill:#bfb,stroke:#333,stroke-width:2px;
-
-    %% Actors
-    Sender([Sender / Payment Gateway]):::client
-    Dashboard([Dashboard User]):::client
-    Receiver([Destination Endpoint]):::external
-
-    %% Core Services
-    subgraph Infrastructure
-        API[Express API Service]:::core
-        Worker[Dispatcher Worker]:::core
+flowchart LR
+    %% External Senders
+    subgraph Ingestion[" 1. Ingestion Layer "]
+        direction TB
+        Sender["🚀 <b>Sender App</b><br/><i>(e.g., Stripe / Razorpay)</i>"]
+        API["⚡ <b>Express API</b><br/><code>POST /events</code>"]
     end
 
-    %% Data Stores
-    subgraph Data
-        Redis[(Redis)]:::db
-        Postgres[(PostgreSQL)]:::db
+    %% Queue & Storage
+    subgraph Storage[" 2. Queue & Storage "]
+        direction TB
+        BullMQ[("📦 <b>BullMQ</b><br/><i>(Redis Queue)</i>")]
+        DB[("🗄️ <b>PostgreSQL</b><br/><i>(Events & Audit Logs)</i>")]
+        CB[("🛡️ <b>Circuit Breaker</b><br/><i>(Redis State)</i>")]
     end
 
-    %% Flow: Event Submission
-    Sender -- "1. POST /events" --> API
-    API -- "2. Enqueue Job" --> Redis
-    API -- "3. Return 202 Accepted" --> Sender
-    API -- "Save Event" --> Postgres
+    %% Worker Execution
+    subgraph Execution[" 3. Dispatch & Resilience "]
+        direction TB
+        Worker["⚙️ <b>Dispatcher Worker</b><br/><i>(Job Consumer)</i>"]
+        HMAC["🔐 <b>HMAC Signer</b><br/><i>(SHA-256 Signature)</i>"]
+        Retry["🔄 <b>Retry Engine</b><br/><i>(Exponential Backoff)</i>"]
+    end
 
-    %% Flow: Dispatching
-    Redis -. "4. Job Available" .-> Worker
-    Worker -- "5. Check Circuit Breaker" --> Redis
-    Worker -- "6. Delivery Attempt (HMAC Signed)" --> Receiver
+    %% External Destination
+    subgraph Destination[" 4. Destination "]
+        direction TB
+        Receiver["🎯 <b>Merchant Endpoint</b><br/><i>(Destination Webhook URL)</i>"]
+    end
 
-    %% Flow: Processing Results
-    Receiver -- "7. Response (2xx or Error)" --> Worker
-    Worker -- "8. Schedule Retry\n(if failed)" --> Redis
-    Worker -- "9. Update Circuit Breaker\n(if failed/recovered)" --> Redis
-    Worker -- "10. Insert Audit Log" --> Postgres
+    %% Real-time Monitoring
+    subgraph Monitoring[" 5. Real-Time Observability "]
+        direction TB
+        PubSub[("📡 <b>Redis Pub/Sub</b><br/><i>(Channel)</i>")]
+        Dashboard["📊 <b>Live Dashboard</b><br/><i>(WebSocket UI)</i>"]
+    end
 
-    %% Flow: Dashboard
-    API -- "WS stream" --> Dashboard
-    Worker -. "11. Publish Status Events" .-> Redis
-    Redis -. "12. Subscribe Status Events" .-> API
+    %% Ingestion Flow
+    Sender -->|"1. POST /events"| API
+    API -->|"2. Save Event"| DB
+    API -->|"3. Enqueue Job"| BullMQ
+    API -.->|"200 Queued"| Sender
+
+    %% Processing Flow
+    BullMQ -->|"4. Consume Job"| Worker
+    Worker -->|"5. Check Health"| CB
+    Worker -->|"6. Sign Payload"| HMAC
+    HMAC -->|"7. Signed HTTP POST"| Receiver
+
+    %% Response & Retry Flow
+    Receiver -->|"8a. 2xx OK"| Worker
+    Receiver -->|"8b. Error / 5xx"| Retry
+    Retry -->|"Schedule Backoff"| BullMQ
+    Worker -->|"9. Append Audit Log"| DB
+    Worker -->|"10. Update Circuit"| CB
+
+    %% Observability Flow
+    Worker -->|"11. Publish Result"| PubSub
+    PubSub -->|"Sub"| API
+    API -->|"WebSocket"| Dashboard
 ```
 
 ## Overview
