@@ -33,4 +33,9 @@ export type DeliveryAttempt =
                     | {status: 'exhausted'; eventId: string; totalAttempts: number; lastError: string;}
 
 
-                            
+export type User = {
+    id : string,
+    username : string,
+    email : string,
+    password : string
+} 
