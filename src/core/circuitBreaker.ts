@@ -39,7 +39,7 @@ export const getCircuitState = async (redisClient: Redis, endpointId: string): P
 
     const state = data.state as CircuitState;
 
-    // if the circuit is open then check if the cooldown is open
+    // if the circuit is open then check if the cooldown time is over
     if (state === 'open') {
         const openedAt = Number(data.openedAt);
         const elapsedSeconds = (Date.now() - openedAt) / 1000;
