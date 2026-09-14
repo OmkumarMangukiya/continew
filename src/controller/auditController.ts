@@ -5,7 +5,7 @@ This file is used to define functions using which we can access audit logs from 
 import { Request, Response } from "express";
 import { db } from "../core/db.js";
 
-// GET /events/:id/attempts
+// GET /events/:id/attempts get all event attemps for a particular event 
 export const getAllEventAttempts = async (req: Request, res: Response) => {
     try {
         const id = req.params.id as string;

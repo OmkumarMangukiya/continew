@@ -8,7 +8,7 @@ import { getCircuitState, redisClient } from "../core/circuitBreaker.js";
 import crypto from "crypto";
 
 // POST /endpoints controller for registering url for merchant
-export const handleEndpoint = async (req: Request, res: Response) => {
+export const createEndpoint = async (req: Request, res: Response) => {
     try {
         const { url } = req.body ?? {};
         if (!url || typeof url !== 'string') {

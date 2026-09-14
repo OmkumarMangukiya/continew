@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authenticateToken } from "../core/middleware/auth.js";
 import {
-    handleEndpoint,
+    createEndpoint,
     getAllEndpoints,
     getEndpointDetails
 } from "../controller/endpointController.js";
@@ -11,7 +11,7 @@ const router = Router();
 // Protect all endpoint routes with cookie authentication
 router.use(authenticateToken);
 
-router.post("/", handleEndpoint);
+router.post("/", createEndpoint);
 router.get("/", getAllEndpoints);
 router.get("/:id", getEndpointDetails);
 
