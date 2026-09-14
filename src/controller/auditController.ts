@@ -2,65 +2,26 @@
 This file is used to define functions using which we can access audit logs from the database.
 */
 
-import { Request, Response } from "express"
+import { Request, Response } from "express";
 import { db } from "../core/db.js";
-import { getCircuitState, redisClient } from "../core/circuitBreaker.js";
-
-// GET /endpoints
-export const getAllEndpoints = async (req: Request, res: Response) => {
-    try {
-        const { rows } = await db.query('SELECT id,url,created_at,is_active FROM endpoints');
-
-        return res.status(200).json({
-            rows
-        });
-    } catch (error) {
-        console.error("Error fetching all endpoints", error);
-        return res.status(500).json({ message: "Failed to fetch all endpoints" });
-    }
-}
-
-// GET /endpoints/:id
-export const getEndpointDetails = async (req: Request, res: Response) => {
-    try {
-        const id = req.params.id as string;
-
-        if (!id)
-            return res.status(400).json({ message: "Endpoint ID is required" });
-        // get the data from the db
-        const endpointResult = await db.query(`SELECT id, url, created_at, is_active FROM endpoints WHERE id=$1`, [id]);
-
-        if (endpointResult.rowCount === 0) {
-            return res.status(404).json({ message: "Endpoint not found" });
-        }
-
-        const endpoint = endpointResult.rows[0];
-        const circuitStatus = await getCircuitState(redisClient, id);
-
-        return res.status(200).json({
-            message: "Endpoint Data",
-            endpointData: endpoint,
-            circuitBreaker: {
-                status: circuitStatus
-            }
-        })
-    } catch (error) {
-        console.error("Error fetching endpoint details:", error);
-        return res.status(500).json({ error: "Failed to fetch endpoint details" })
-    }
-
-}
 
 // GET /events/:id/attempts
 export const getAllEventAttempts = async (req: Request, res: Response) => {
     try {
         const id = req.params.id as string;
+        const userId = req.user?.userId;
 
         if (!id) {
-            return res.status(400).json({ message: "Event ID is required" })
+            return res.status(400).json({ message: "Event ID is required" });
         }
 
-        const eventCheck = await db.query(`SELECT id FROM events WHERE id = $1`, [id]);
+        const eventCheck = await db.query(
+            `SELECT ev.id 
+             FROM events ev
+             JOIN endpoints ep ON ep.id = ev.endpoint_id
+             WHERE ev.id = $1 AND ep.user_id = $2`,
+            [id, userId]
+        );
         if (eventCheck.rowCount === 0) {
             return res.status(404).json({ message: "Event not found" });
         }
@@ -75,20 +36,20 @@ export const getAllEventAttempts = async (req: Request, res: Response) => {
         console.error("Error fetching event attempts:", error);
         return res.status(500).json({ error: "Failed to fetch event attempts" });
     }
-
-}
+};
 
 // GET /endpoints/:id/attempts?page=1&limit=50
 export const getAllEndpointAttempts = async (req: Request, res: Response) => {
     try {
         const endpointId = req.params.id as string;
+        const userId = req.user?.userId;
 
         if (!endpointId) {
-            return res.status(400).json({ message: "Endpoint ID is requried" });
+            return res.status(400).json({ message: "Endpoint ID is required" });
         }
 
-        // check if the endpoint exist
-        const endpointData = await db.query('SELECT id, url FROM endpoints where id = $1', [endpointId]);
+        // check if the endpoint exists and belongs to this user
+        const endpointData = await db.query('SELECT id, url FROM endpoints WHERE id = $1 AND user_id = $2', [endpointId, userId]);
 
         if (endpointData.rowCount === 0) {
             return res.status(404).json({ message: "Endpoint not found" });
@@ -118,9 +79,9 @@ export const getAllEndpointAttempts = async (req: Request, res: Response) => {
 
         const { rows } = await db.query(query, [endpointId, limit, offset]);
 
-        res.status(200).json({ endpointData, page, limit, offset, count: rows.length, attempts: rows });
+        res.status(200).json({ endpointData: endpointData.rows[0], page, limit, offset, count: rows.length, attempts: rows });
     } catch (error) {
         console.error("Error fetching endpoint attempts:", error);
         return res.status(500).json({ error: "Failed to fetch endpoint attempts" });
     }
-}
+};

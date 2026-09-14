@@ -1,16 +1,18 @@
 import { Router } from "express";
-import { handleEndpoint } from "../controller/endpointController.js";
+import { authenticateToken } from "../core/middleware/auth.js";
 import {
+    handleEndpoint,
     getAllEndpoints,
-    getEndpointDetails,
-    getAllEndpointAttempts
-} from "../controller/auditController.js";
+    getEndpointDetails
+} from "../controller/endpointController.js";
 
 const router = Router();
+
+// Protect all endpoint routes with cookie authentication
+router.use(authenticateToken);
 
 router.post("/", handleEndpoint);
 router.get("/", getAllEndpoints);
 router.get("/:id", getEndpointDetails);
-router.get("/:id/attempts", getAllEndpointAttempts);
 
 export default router;

@@ -3,6 +3,7 @@
 // Webhook Endpoint : Destination URL registered by the merchant where the events will be sent to.
 export interface WebhookEndpoint{
     id : string; // unqiue id for each endpoint
+    userId?: string; // id of the user who owns this endpoint
     url : string; // url where the events would be sent to 
     signingSecret : string; // 32 byte key generated at registration, used by merchant server to verify
     createdAt: Date;
