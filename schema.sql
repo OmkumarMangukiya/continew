@@ -1,6 +1,23 @@
-CREATE TABLE IF NOT EXISTS endpoints(
+CREATE TABLE IF NOT EXISTS users(
+    id              TEXT PRIMARY KEY,
+    email           VARCHAR(255) UNIQUE NOT NULL,
+    password_hash   VARCHAR(255) NOT NULL,
+    username        VARCHAR(50) UNIQUE NOT NULL,
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS api_keys (
     id              TEXT PRIMARY KEY,
     user_id         TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    key_hash        TEXT UNIQUE NOT NULL,
+    name            VARCHAR(100),
+    is_active       BOOLEAN DEFAULT TRUE,
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS endpoints(
+    id              TEXT PRIMARY KEY,
+    user_id         TEXT REFERENCES users(id) ON DELETE CASCADE,
     url             TEXT NOT NULL,
     signing_secret  TEXT NOT NULL,
     created_at      TIMESTAMPTZ DEFAULT NOW(),
@@ -23,22 +40,5 @@ CREATE TABLE IF NOT EXISTS delivery_attempts(
     latency_ms      INTEGER,
     error           TEXT,
     attempt_number  INTEGER,
-    created_at      TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS users(
-    id              TEXT PRIMARY KEY,
-    email           VARCHAR(255) UNIQUE NOT NULL,
-    password_hash   VARCHAR(255),
-    username        VARCHAR(50) UNIQUE NOT NULL,
-    created_at      TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS api_keys (
-    id              TEXT PRIMARY KEY,
-    user_id         TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    key_hash        TEXT UNIQUE NOT NULL,
-    name            VARCHAR(100),
-    is_active       BOOLEAN DEFAULT TRUE,
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );

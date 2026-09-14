@@ -34,8 +34,20 @@ export type DeliveryAttempt =
 
 
 export type User = {
-    id : string,
-    username : string,
-    email : string,
-    password : string
-} 
+    id: string;
+    username: string;
+    email: string;
+    password_hash: string;
+    created_at?: Date;
+}
+
+// To say to TypeScript that Request can hold userId
+declare global {
+    namespace Express {
+        interface Request {
+            user?: {
+                userId: string;
+            };
+        }
+    }
+}
