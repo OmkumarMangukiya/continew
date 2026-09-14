@@ -42,6 +42,31 @@ export type User = {
     created_at?: Date;
 }
 
+// ApiKey : API key for merchant authentication to ingest events
+export interface ApiKey {
+    id: string;
+    userId: string;
+    keyHash: string;
+    name?: string;
+    isActive: boolean;
+    createdAt: Date;
+}
+
+export interface ApiKeyResponse {
+    id: string;
+    name?: string;
+    rawApiKey: string;
+    isActive: boolean;
+    createdAt: Date;
+}
+
+export interface ApiKeySummary {
+    id: string;
+    name?: string;
+    isActive: boolean;
+    createdAt: Date;
+}
+
 // To say to TypeScript that Request can hold userId
 declare global {
     namespace Express {

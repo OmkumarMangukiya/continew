@@ -19,3 +19,11 @@ export const verifyOtpSchema = z.object({
     email: z.email(),
     otp: z.string().length(6, "OTP must be exactly 6 digits")
 });
+
+export const createApiKeySchema = z.object({
+    name: z.string().min(1, "Name must not be empty").max(100, "Name must be at most 100 characters").optional()
+});
+
+export const toggleApiKeySchema = z.object({
+    isActive: z.boolean().optional()
+});
