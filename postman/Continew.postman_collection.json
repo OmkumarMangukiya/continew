@@ -1,0 +1,353 @@
+{
+	"info": {
+		"_postman_id": "de5be99a-7c4a-434e-9642-4ffb7270be99",
+		"name": "Continew",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "53090784",
+		"_collection_link": "https://chiefiscoding-2971413.postman.co/workspace/d1bb0949-74d3-4909-845c-f696b63ef28b/collection/53090784-de5be99a-7c4a-434e-9642-4ffb7270be99?action=share&source=collection_link&creator=53090784"
+	},
+	"item": [
+		{
+			"name": "userRoutes",
+			"item": [
+				{
+					"name": "send OTP",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\" : \"ommangukiya8+c1@gmail.com\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/users/send-otp",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"users",
+								"send-otp"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Verify OTP",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\" : \"ommangukiya8+c1@gmail.com\",\n    \"otp\" : \"813055\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/users/verify-otp",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"users",
+								"verify-otp"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Register User",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\" : \"ommangukiya8+c1@gmail.com\",\n    \"username\" : \"omman1\",\n    \"password\" : \"something\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/users/register",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"users",
+								"register"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Login User",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\" : \"ommangukiya8+c1@gmail.com\",\n    \"password\" : \"something\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/users/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"users",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh Access Token",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/users/refresh",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"users",
+								"refresh"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/users/logout",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"users",
+								"logout"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "endpoints",
+			"item": [
+				{
+					"name": "Get all endpoints",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/endpoints",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"endpoints"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Endpoint",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const response = pm.response.json();",
+									"",
+									"pm.environment.set(\"endpointId\", response.endpoint.id);"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"url\": \"http://localhost:3000/api/v1/users/refresh\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/endpoints",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"endpoints"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Endpoint Detail",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/endpoints/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"endpoints",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "{{endpointId}}"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Events",
+			"item": [
+				{
+					"name": "Send Event",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "ct_live_testkey1234567890abcdef",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"endpointId\": \"ep_test_01\",\n    \"type\": \"payment.succeeded\",\n    \"payload\": {\n      \"orderId\": \"ord_1001\",\n      \"amount\": 2999,\n      \"currency\": \"INR\",\n      \"customer\": \"omman@example.com\"\n    }\n  }",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/events",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"events"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Audits",
+			"item": [
+				{
+					"name": "Get All Event Attempts",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "ct_live_testkey1234567890abcdef",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/audit/events/:id/attempts",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"audit",
+								"events",
+								":id",
+								"attempts"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "aa2dc7fc-5289-4033-b624-0afa3faa0199"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Endpoints Attempts",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-api-key",
+								"value": "ct_live_testkey1234567890abcdef",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/audit/endpoints/:id/attempts",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"audit",
+								"endpoints",
+								":id",
+								"attempts"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "d6ba7f8c-4fed-47e3-88d0-7605e047c613"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
