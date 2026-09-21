@@ -55,8 +55,6 @@ app.use(express.static(`src/public`));
 // API v1 versioned routes
 app.use('/api/v1', v1Router);
 
-// Backwards-compatible aliases for endpoints and events
-app.use('/', v1Router);
 
 app.get('/', ((req: Request, res: Response) => {
     res.json({ message: "server is running", version: "v1" });
