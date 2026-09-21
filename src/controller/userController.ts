@@ -23,8 +23,7 @@ import {
     loginUserSchema
 } from "../core/zod.js";
 import { User } from "../core/type.js";
-
-const JWT_SECRET = process.env.JWT_SECRET || "continew-default-secret";
+import { JWT_SECRET } from "../core/env.js";
 
 const COOKIE_OPTIONS: CookieOptions = {
     httpOnly: true,

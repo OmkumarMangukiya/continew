@@ -1,12 +1,10 @@
-import "dotenv/config";
 import pg from "pg";
+import { DATABASE_URL } from "./env.js";
 
 const { Pool } = pg;
-const isCloudDb = process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('localhost');
+const isCloudDb = DATABASE_URL.includes('sslmode=require') || (!DATABASE_URL.includes('localhost') && !DATABASE_URL.includes('postgres'));
 
 export const db = new Pool({
-    connectionString:
-        process.env.DATABASE_URL ||
-        `postgresql://${process.env.POSTGRES_USER || 'postgres'}:${process.env.POSTGRES_PASSWORD}@${process.env.POSTGRES_HOST || 'localhost'}:${process.env.POSTGRES_PORT || 5432}/${process.env.POSTGRES_DB || 'continew'}`,
+    connectionString: DATABASE_URL,
     ssl: isCloudDb ? { rejectUnauthorized: false } : false
 });
