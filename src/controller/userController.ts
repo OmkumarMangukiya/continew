@@ -276,3 +276,32 @@ export const logoutUser = async (req: Request, res: Response) => {
     res.clearCookie("refreshToken", COOKIE_OPTIONS);
     return res.status(200).json({ message: "Logged out successfully" });
 };
+
+// 7. Get current user profile
+export const getMe = async (req: Request, res: Response) => {
+    try {
+        const userId = req.user?.userId;
+        if (!userId) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+        const result = await db.query(
+            "SELECT id, email, username, created_at FROM users WHERE id = $1",
+            [userId]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        const user = result.rows[0];
+        return res.status(200).json({
+            user: {
+                id: user.id,
+                email: user.email,
+                username: user.username,
+                createdAt: user.created_at
+            }
+        });
+    } catch (error) {
+        console.error("Error in getMe:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};

@@ -3,7 +3,8 @@ import { authenticateToken } from "../core/middleware/auth.js";
 import {
     createEndpoint,
     getAllEndpoints,
-    getEndpointDetails
+    getEndpointDetails,
+    toggleEndpoint
 } from "../controller/endpointController.js";
 
 const router = Router();
@@ -14,5 +15,6 @@ router.use(authenticateToken);
 router.post("/", createEndpoint);
 router.get("/", getAllEndpoints);
 router.get("/:id", getEndpointDetails);
+router.patch("/:id/toggle", toggleEndpoint);
 
 export default router;

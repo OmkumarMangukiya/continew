@@ -7,62 +7,91 @@ This document explains the internal design of Continew, the data models, system 
 The project is deliberately split into distinct components to enforce the **Single Responsibility Principle (SRP)**.
 
 ```text
-src/
-├── api/
-│   └── server.ts         # Ingestion layer. Handles incoming HTTP requests ONLY.
-├── worker/
-│   └── index.ts          # Execution layer. Consumes jobs and dispatches HTTP requests.
-├── controller/
-│   └── auditController.ts# Read-only layer for the dashboard and historical data.
-└── core/                 # Shared domain logic and infrastructure connections.
-    ├── circuitBreaker.ts # State machine for the Circuit Breaker pattern.
-    ├── db.ts             # Database connection singleton.
-    ├── hmac.ts           # Pure functions for cryptographic signing.
-    ├── queue.ts          # BullMQ queue configuration.
-    └── type.ts           # TypeScript interfaces (Domain Models).
+continew/
+├── src/
+│   ├── api/
+│   │   └── server.ts         # Ingestion layer & WebSocket server.
+│   ├── worker/
+│   │   └── index.ts          # Dispatch Worker. Consumes BullMQ jobs & delivers webhooks.
+│   ├── controller/
+│   │   ├── apiKeyController.ts   # API key generation, hashing & revocation.
+│   │   ├── auditController.ts    # Read-only audit logs & delivery stats.
+│   │   ├── endpointController.ts # CRUD for webhook destination endpoints.
+│   │   ├── eventController.ts    # Webhook ingestion & queue dispatch.
+│   │   └── userController.ts     # User auth (register, login, OTP verify).
+│   ├── routes/
+│   │   ├── apiKeyRoutes.ts
+│   │   ├── auditRoutes.ts
+│   │   ├── endpointRoutes.ts
+│   │   ├── eventRoutes.ts
+│   │   └── userRoutes.ts
+│   └── core/
+│       ├── circuitBreaker.ts # Distributed Redis circuit breaker state machine.
+│       ├── db.ts             # PostgreSQL pool singleton.
+│       ├── hmac.ts           # HMAC SHA-256 cryptographic signature generator.
+│       ├── mailer.ts         # Nodemailer integration for OTP and activation.
+│       ├── middleware/       # Auth JWT cookie & API Key validation middleware.
+│       ├── queue.ts          # BullMQ queue configuration.
+│       ├── redis.ts          # Redis client singleton.
+│       ├── type.ts           # Domain models & TypeScript interfaces.
+│       └── zod.ts            # Request validation schemas.
+└── client/                   # Vite + React 19 + TypeScript Dashboard (SPA)
+    ├── src/pages/            # Auth, Endpoints, ApiKeys, LiveDelivery, EventTester
+    ├── src/components/       # Navbar, StatusBadge, Modal, ConfirmDialog
+    └── src/services/api.ts   # Axios API client
 ```
 
 ## 2. Low-Level Design (LLD) Diagrams
 
 ### 2.1 Component Interaction (Sequence Diagram)
 
-This sequence diagram illustrates the exact lifecycle of an event from ingestion to final delivery, showcasing the asynchronous nature of the system.
+This sequence diagram illustrates the lifecycle of authentication, webhook ingestion, background delivery, and real-time observability.
 
 ```mermaid
 sequenceDiagram
-    participant Sender as Client (Sender)
-    participant API as Express API
+    participant Sender as Sender Client / Gateway
+    participant API as Express API Server
+    participant Auth as Auth Middleware
     participant DB as PostgreSQL
-    participant Redis as Redis (BullMQ)
+    participant Redis as Redis (BullMQ + State)
     participant Worker as Dispatch Worker
-    participant Receiver as Merchant Webhook URL
+    participant Receiver as Target Endpoint URL
+    participant Client as React Dashboard (WS)
 
-    Sender->>API: POST /events (payload)
+    Note over Sender, API: 1. Ingestion Flow
+    Sender->>API: POST /events (Payload + x-api-key)
+    API->>Auth: Verify API Key hash
+    Auth->>DB: Check active key & get user_id
+    DB-->>Auth: Key Validated
     API->>DB: Insert into `events` table
     API->>Redis: Enqueue Job (`webhook-delivery`)
-    API-->>Sender: 200 OK (eventId, queued)
-    
-    Note over API, Sender: Ingestion is completely decoupled from delivery.
-    
+    API-->>Sender: 202 Accepted (eventId, queued)
+
+    Note over Redis, Worker: 2. Background Dispatch Flow
     Redis-->>Worker: Dequeue Job
-    Worker->>Worker: Check Circuit Breaker State
+    Worker->>Worker: Check Circuit Breaker State (Redis)
     
     alt Circuit is OPEN
-        Worker-->>Redis: Job Failed (retry later)
+        Worker-->>Redis: Job Paused / Rescheduled
     else Circuit is CLOSED / HALF-OPEN
         Worker->>Worker: Sign Payload (HMAC SHA-256)
         Worker->>Receiver: HTTP POST (Signed Payload)
         
         alt 2xx Success
             Receiver-->>Worker: 200 OK
-            Worker->>DB: Insert `delivery_attempts` (status: succeeded)
-            Worker->>Worker: Record Circuit Success
-        else 4xx/5xx/Timeout Failure
+            Worker->>DB: Insert `delivery_attempts` (succeeded)
+            Worker->>Redis: Update Circuit Success
+        else 4xx / 5xx / Timeout Failure
             Receiver-->>Worker: Error / Timeout
-            Worker->>DB: Insert `delivery_attempts` (status: failed)
-            Worker->>Worker: Record Circuit Failure
-            Worker-->>Redis: Job Failed (trigger Exponential Backoff)
+            Worker->>DB: Insert `delivery_attempts` (failed)
+            Worker->>Redis: Update Circuit Failure
+            Worker-->>Redis: Trigger Exponential Backoff
         end
+
+        Note over Worker, Client: 3. Real-Time Observability
+        Worker->>Redis: Publish `webhook:delivery_attempt`
+        Redis-->>API: Pub/Sub Broadcast
+        API-->>Client: WebSocket Push Event
     end
 ```
 
@@ -92,8 +121,26 @@ stateDiagram-v2
 
 ```mermaid
 erDiagram
+    USERS {
+        string id PK
+        string email UK
+        string password_hash
+        string username UK
+        timestamp created_at
+    }
+
+    API_KEYS {
+        string id PK
+        string user_id FK
+        string key_hash UK
+        string name
+        boolean is_active
+        timestamp created_at
+    }
+
     ENDPOINTS {
         string id PK
+        string user_id FK
         string url
         string signing_secret
         boolean is_active
@@ -119,6 +166,8 @@ erDiagram
         timestamp created_at
     }
 
+    USERS ||--o{ API_KEYS : "owns"
+    USERS ||--o{ ENDPOINTS : "owns"
     ENDPOINTS ||--o{ EVENTS : "receives"
     EVENTS ||--o{ DELIVERY_ATTEMPTS : "generates"
 ```

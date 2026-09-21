@@ -1,0 +1,90 @@
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 9999px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  text-transform: capitalize;
+  line-height: 1;
+  border: 1px solid transparent;
+  user-select: none;
+}
+
+.status-badge--sm {
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+.status-badge--md {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.status-badge__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Success: Active, Succeeded, Closed */
+.status-badge--success {
+  background-color: var(--accent-green-bg);
+  color: var(--accent-green);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.status-badge--success .status-badge__dot {
+  background-color: var(--accent-green);
+}
+
+/* Danger: Inactive, Failed, Open */
+.status-badge--danger {
+  background-color: var(--accent-red-bg);
+  color: var(--accent-red);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+.status-badge--danger .status-badge__dot {
+  background-color: var(--accent-red);
+}
+
+/* Warning: Pending, Half-open */
+.status-badge--warning {
+  background-color: var(--accent-yellow-bg);
+  color: var(--accent-yellow);
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+.status-badge--warning .status-badge__dot {
+  background-color: var(--accent-yellow);
+}
+
+/* Default */
+.status-badge--default {
+  background-color: rgba(113, 113, 122, 0.12);
+  color: var(--text-secondary);
+  border-color: var(--border-default);
+}
+
+.status-badge--default .status-badge__dot {
+  background-color: var(--text-muted);
+}
+
+/* Pulsing dot animation for live / pending states */
+.status-badge__dot--pulse {
+  animation: pulse-dot 1.8s infinite ease-in-out;
+}
+
+@keyframes pulse-dot {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6);
+  }
+  70% {
+    box-shadow: 0 0 0 5px rgba(16, 185, 129, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}

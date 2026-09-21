@@ -54,7 +54,14 @@ export const getAllEndpoints = async (req: Request, res: Response) => {
             [userId]
         );
 
-        return res.status(200).json({ rows });
+        const endpoints = rows.map((r) => ({
+            id: r.id,
+            url: r.url,
+            isActive: r.is_active,
+            createdAt: r.created_at
+        }));
+
+        return res.status(200).json({ rows: endpoints });
     } catch (error) {
         console.error("Error fetching all endpoints", error);
         return res.status(500).json({ message: "Failed to fetch all endpoints" });
@@ -88,7 +95,12 @@ export const getEndpointDetails = async (req: Request, res: Response) => {
 
         return res.status(200).json({
             message: "Endpoint Data",
-            endpointData: endpoint,
+            endpointData: {
+                id: endpoint.id,
+                url: endpoint.url,
+                isActive: endpoint.is_active,
+                createdAt: endpoint.created_at
+            },
             circuitBreaker: {
                 status: circuitStatus
             }
@@ -98,3 +110,58 @@ export const getEndpointDetails = async (req: Request, res: Response) => {
         return res.status(500).json({ error: "Failed to fetch endpoint details" });
     }
 };
+
+// PATCH /endpoints/:id/toggle - toggle endpoint active status
+export const toggleEndpoint = async (req: Request, res: Response) => {
+    try {
+        const id = req.params.id as string;
+        const userId = req.user?.userId;
+        if (!userId) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        if (!id) {
+            return res.status(400).json({ message: "Endpoint ID is required" });
+        }
+
+        const { isActive } = req.body ?? {};
+
+        let result;
+        if (typeof isActive === "boolean") {
+            result = await db.query(
+                `UPDATE endpoints
+                 SET is_active = $1
+                 WHERE id = $2 AND user_id = $3
+                 RETURNING id, url, is_active, created_at`,
+                [isActive, id, userId]
+            );
+        } else {
+            result = await db.query(
+                `UPDATE endpoints
+                 SET is_active = NOT is_active
+                 WHERE id = $1 AND user_id = $2
+                 RETURNING id, url, is_active, created_at`,
+                [id, userId]
+            );
+        }
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ message: "Endpoint not found" });
+        }
+
+        const row = result.rows[0];
+        return res.status(200).json({
+            message: `Endpoint ${row.is_active ? "activated" : "deactivated"} successfully`,
+            endpoint: {
+                id: row.id,
+                url: row.url,
+                isActive: row.is_active,
+                createdAt: row.created_at
+            }
+        });
+    } catch (error) {
+        console.error("Error toggling endpoint:", error);
+        return res.status(500).json({ message: "Failed to toggle endpoint" });
+    }
+};
+

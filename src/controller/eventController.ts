@@ -17,8 +17,8 @@ export const handleEvents = async (req: Request, res: Response) => {
             return res.status(401).json({ error: "x-api-key header is required" });
         }
 
-        const { endpointId, type, payload } = req.body ?? {};
-
+        const { endpoint_id, endpointId: bodyEndpointId, type, payload } = req.body ?? {};
+        const endpointId = bodyEndpointId || endpoint_id;
         // Input Validation
         if (!endpointId || typeof endpointId !== 'string') {
             return res.status(400).json({ error: "endpointId is required and must be a string" });

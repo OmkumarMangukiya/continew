@@ -4,6 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "dev:client": "npm --prefix client run dev",
+    "build:client": "npm --prefix client run build",
     "dev:api": "tsx watch src/api/server.ts",
     "dev:worker": "tsx watch src/worker/index.ts",
     "build": "tsc",

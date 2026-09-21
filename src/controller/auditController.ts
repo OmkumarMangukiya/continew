@@ -5,7 +5,7 @@ This file is used to define functions using which we can access audit logs from 
 import { Request, Response } from "express";
 import { db } from "../core/db.js";
 
-// GET /events/:id/attempts get all event attemps for a particular event 
+// GET /events/:id/attempts get all event attempts for a particular event 
 export const getAllEventAttempts = async (req: Request, res: Response) => {
     try {
         const id = req.params.id as string;
@@ -28,9 +28,21 @@ export const getAllEventAttempts = async (req: Request, res: Response) => {
 
         const { rows } = await db.query('SELECT * FROM delivery_attempts WHERE event_id=$1 ORDER BY created_at', [id]);
 
+        const attempts = rows.map((row) => ({
+            id: row.id,
+            eventId: row.event_id,
+            status: row.status,
+            responseCode: row.response_code ?? undefined,
+            latencyMs: row.latency_ms ?? undefined,
+            error: row.error ?? undefined,
+            attemptNumber: row.attempt_number,
+            createdAt: row.created_at,
+            eventType: row.event_type
+        }));
+
         return res.status(200).json({
             eventId: id,
-            attemps: rows
+            attempts
         });
     } catch (error) {
         console.error("Error fetching event attempts:", error);
@@ -79,7 +91,19 @@ export const getAllEndpointAttempts = async (req: Request, res: Response) => {
 
         const { rows } = await db.query(query, [endpointId, limit, offset]);
 
-        res.status(200).json({ endpointData: endpointData.rows[0], page, limit, offset, count: rows.length, attempts: rows });
+        const attempts = rows.map((row) => ({
+            id: row.id,
+            eventId: row.event_id,
+            status: row.status,
+            responseCode: row.response_code ?? undefined,
+            latencyMs: row.latency_ms ?? undefined,
+            error: row.error ?? undefined,
+            attemptNumber: row.attempt_number,
+            createdAt: row.created_at,
+            eventType: row.event_type
+        }));
+
+        res.status(200).json({ endpointData: endpointData.rows[0], page, limit, offset, count: rows.length, attempts });
     } catch (error) {
         console.error("Error fetching endpoint attempts:", error);
         return res.status(500).json({ error: "Failed to fetch endpoint attempts" });
