@@ -5,10 +5,10 @@
 
 import React from 'react';
 import { useAuthContext } from '../context/useAuthContext';
-import { Activity, Webhook, Key, Send, LogOut, User } from 'lucide-react';
+import { Activity, History, Webhook, Key, Send, LogOut, User } from 'lucide-react';
 import './Navbar.css';
 
-export type AppTab = 'dashboard' | 'endpoints' | 'apikeys' | 'test-event';
+export type AppTab = 'dashboard' | 'audit' | 'endpoints' | 'apikeys' | 'test-event';
 
 interface NavbarProps {
   activeTab: AppTab;
@@ -20,6 +20,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, onSelectTab }) => {
 
   const tabs: Array<{ id: AppTab; label: string; icon: React.ReactNode }> = [
     { id: 'dashboard', label: 'Live Delivery', icon: <Activity size={15} /> },
+    { id: 'audit', label: 'Audit Logs', icon: <History size={15} /> },
     { id: 'endpoints', label: 'Endpoints', icon: <Webhook size={15} /> },
     { id: 'apikeys', label: 'API Keys', icon: <Key size={15} /> },
     { id: 'test-event', label: 'Send Event', icon: <Send size={15} /> },

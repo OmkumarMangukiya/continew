@@ -35,7 +35,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   let variant = 'default';
   if (['active', 'succeeded', 'success', 'closed', '200'].includes(normalized)) {
     variant = 'success';
-  } else if (['inactive', 'failed', 'error', 'open'].includes(normalized)) {
+  } else if (['inactive', 'failed', 'error', 'open', 'exhausted'].includes(normalized)) {
     variant = 'danger';
   } else if (['pending', 'half_open', 'retry'].includes(normalized)) {
     variant = 'warning';

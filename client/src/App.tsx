@@ -11,12 +11,19 @@ import { EndpointsPage } from './pages/EndpointsPage';
 import { ApiKeysPage } from './pages/ApiKeysPage';
 import { EventTesterPage } from './pages/EventTesterPage';
 import { LiveDeliveryPage } from './pages/LiveDeliveryPage';
+import { AuditLogsPage } from './pages/AuditLogsPage';
 import { RefreshCw } from 'lucide-react';
 import './App.css';
 
 export default function App() {
   const { isAuthenticated, isLoading } = useAuthContext();
   const [activeTab, setActiveTab] = useState<AppTab>('dashboard');
+  const [selectedAuditEndpointId, setSelectedAuditEndpointId] = useState<string | null>(null);
+
+  const handleNavigateToAudit = (endpointId: string) => {
+    setSelectedAuditEndpointId(endpointId);
+    setActiveTab('audit');
+  };
 
   // Initial session verification loader
   if (isLoading) {
@@ -44,7 +51,16 @@ export default function App() {
       <Navbar activeTab={activeTab} onSelectTab={setActiveTab} />
       <main className="app-main-content">
         {activeTab === 'dashboard' && <LiveDeliveryPage />}
-        {activeTab === 'endpoints' && <EndpointsPage />}
+        {activeTab === 'audit' && (
+          <AuditLogsPage
+            initialEndpointId={selectedAuditEndpointId}
+            onNavigateToEndpoints={() => setActiveTab('endpoints')}
+            onNavigateToSendEvent={() => setActiveTab('test-event')}
+          />
+        )}
+        {activeTab === 'endpoints' && (
+          <EndpointsPage onNavigateToAudit={handleNavigateToAudit} />
+        )}
         {activeTab === 'apikeys' && <ApiKeysPage />}
         {activeTab === 'test-event' && (
           <EventTesterPage onNavigateToLiveDelivery={() => setActiveTab('dashboard')} />

@@ -218,6 +218,12 @@
   color: var(--text-muted);
 }
 
+.endpoint-card__actions-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* Buttons */
 .btn {
   display: inline-flex;

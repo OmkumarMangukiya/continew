@@ -20,10 +20,15 @@ import {
   AlertCircle,
   ToggleLeft,
   ToggleRight,
+  History,
 } from 'lucide-react';
 import './EndpointsPage.css';
 
-export const EndpointsPage: React.FC = () => {
+interface EndpointsPageProps {
+  onNavigateToAudit?: (endpointId: string) => void;
+}
+
+export const EndpointsPage: React.FC<EndpointsPageProps> = ({ onNavigateToAudit }) => {
   const { endpoints, isLoading, error, refresh, createEndpoint, toggleEndpoint, getDetails } =
     useEndpoints();
 
@@ -204,14 +209,27 @@ export const EndpointsPage: React.FC = () => {
                     })}
                   </span>
 
-                  <button
-                    type="button"
-                    className="btn btn--subtle"
-                    onClick={() => handleInspectDetails(ep.id)}
-                  >
-                    <Activity size={14} />
-                    <span>Circuit Status</span>
-                  </button>
+                  <div className="endpoint-card__actions-group">
+                    {onNavigateToAudit && (
+                      <button
+                        type="button"
+                        className="btn btn--subtle"
+                        onClick={() => onNavigateToAudit(ep.id)}
+                        title="View audit logs for this endpoint"
+                      >
+                        <History size={14} />
+                        <span>Audit Logs</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="btn btn--subtle"
+                      onClick={() => handleInspectDetails(ep.id)}
+                    >
+                      <Activity size={14} />
+                      <span>Circuit Status</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
