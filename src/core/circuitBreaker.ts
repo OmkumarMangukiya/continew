@@ -9,10 +9,10 @@ Functions Implemented :
                         2. recordSuccess(redisClient, endpointId) -> record success and change state accordingly
                         3. recordFailure(redisClient, endpointId) -> record failure and change state accordingly
                         4. isRequestAllowed(redisClient, endpointId) -> Check if the request is allowed to be sent
+                        5. getRemainingCooldownMs(redisClient, endpointId) -> Returns time left for circuit to become half-open | open.
 */
 
 import { Redis } from 'ioredis';
-
 const redisURL = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
 const isTls = redisURL.startsWith('rediss://');
 export const redisClient = new Redis(redisURL, {
@@ -90,3 +90,17 @@ export const isRequestAllowed = async (redisClient: Redis, endpointId: string): 
     const state = await getCircuitState(redisClient, endpointId);
     return state === 'closed' || state === 'half-open';
 };
+
+export const getRemainingCooldownMs = async(redisClient: Redis, endpointId: string): Promise<number> => {
+    const data = await redisClient.hgetall(`circuit:${endpointId}`);
+    if(!data || data.state !== 'open' || !data.openedAt){
+        return 0;
+    }
+
+    const openedAt = Number(data.openedAt);
+    const elapsedMs = Date.now() - openedAt;
+    const totalCooldownMs = CIRCUIT_CONFIG.cooldownSeconds*1000;
+    const remainingMs = totalCooldownMs - elapsedMs;
+
+    return remainingMs > 0 ? remainingMs : 0;
+}

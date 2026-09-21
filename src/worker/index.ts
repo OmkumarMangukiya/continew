@@ -2,12 +2,12 @@
 Dispatcher that takes the event from the queue and process jobs.
 */
 
-import { Worker, Job } from "bullmq"
+import { Worker, Job, DelayedError} from "bullmq"
 import { connection } from "../core/queue.js"
 import { signPayload } from "../core/hmac.js"
 import type { Event } from "../core/type.js"
 import { db } from "../core/db.js"
-import { isRequestAllowed, recordSuccess, redisClient, recordFailure } from "../core/circuitBreaker.js"
+import { isRequestAllowed, recordSuccess, redisClient, recordFailure, getRemainingCooldownMs } from "../core/circuitBreaker.js"
 // Function to calculate backoff
 export const backoffCalculation = (attemptsMade: number, type?: string) => {
     if (type === 'customWebhookbackoff') {
@@ -27,11 +27,7 @@ export const backoffCalculation = (attemptsMade: number, type?: string) => {
 // Webhook Delivery 
 export const deliveryWorker = new Worker(
     'webhook-delivery',
-    async (job: Job) => {
-        const attempt = job.attemptsMade + 1;
-        const maxAttempts = job.opts.attempts || 1;
-
-        console.log(`Processing job: ${job.id} (Attempt ${attempt}/${maxAttempts}) with data: `, job.data);
+    async (job: Job, token?: string) => {
 
         const event: Event = job.data;
 
@@ -45,8 +41,19 @@ export const deliveryWorker = new Worker(
         const signingSecret = endpoint.signing_secret;
         const isAllowed = await isRequestAllowed(redisClient, event.endpointId);
         if (!isAllowed) {
-            throw new Error(`Circuit open for endpoint ${event.endpointId}`);
+            const remainingCooldownMs = await getRemainingCooldownMs(redisClient, event.endpointId);
+            // add a 1s buffer + 0-1s random time to prevent sudden event spikes
+            const delayMs = Math.max(remainingCooldownMs, 1000) + 1000 + Math.floor(Math.random() * 1000);
+             console.warn(`[Worker] Circuit open for endpoint ${event.endpointId}. Delaying job ${job.id} for ${Math.round(delayMs / 1000)}s without consuming attempts.`);
+
+            await job.moveToDelayed(Date.now() + delayMs, token);
+            throw new DelayedError();
         }
+
+        const attempt = job.attemptsMade + 1;
+        const maxAttempts = job.opts.attempts || 1;
+
+        console.log(`Processing job: ${job.id} (Attempt ${attempt}/${maxAttempts}) with data: `, job.data);
 
         const payloadString = JSON.stringify({
             id: event.id,

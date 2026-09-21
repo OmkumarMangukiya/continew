@@ -349,7 +349,7 @@ export const EndpointsPage: React.FC<EndpointsPageProps> = ({ onNavigateToAudit 
                 </p>
               ) : (
                 <p className="circuit-explainer--closed">
-                  ✅ The circuit is <strong>CLOSED</strong> (Normal). All deliveries are flowing as scheduled.
+                  The circuit is <strong>CLOSED</strong> (Normal). All deliveries are flowing as scheduled.
                 </p>
               )}
             </div>
