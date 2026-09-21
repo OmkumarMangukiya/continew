@@ -41,6 +41,8 @@ jobs:
         run: npm test
         env:
           REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test-jwt-secret-for-ci
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/continew_test
 
   deploy:
     name: Deploy to Render
